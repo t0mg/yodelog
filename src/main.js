@@ -184,16 +184,16 @@ async function main() {
         { config: BLUESKY_CONFIG, name: 'BlueSky', enabled: creds.bluesky, clientConfig: creds.blueskyConfig },
       ];
 
+      // Resolve image paths relative to the markdown file's directory
+      const fileDir = dirname(file);
+      for (const chunk of processed.chunks) {
+        for (const img of chunk.images) {
+          img.path = join(fileDir, img.path);
+        }
+      }
+
       for (const platform of platforms) {
         const posts = splitForPlatform(processed.chunks, platform.config, options);
-
-        // Resolve image paths relative to the markdown file's directory
-        const fileDir = dirname(file);
-        for (const post of posts) {
-          for (const img of post.images) {
-            img.path = join(fileDir, img.path);
-          }
-        }
 
         if (isDryRun) {
           // Dry-run: log what would be posted

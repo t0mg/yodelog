@@ -27,3 +27,7 @@ This shouldn't be posted
 ## Testing image post again
 because it didnt work last time...
 ![Sloppy logo](./slopo.png)
+
+## Testing image post again (bis)
+because it didnt work last time...
+![Sloppy logo](./slopo.png)

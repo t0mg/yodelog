@@ -11,7 +11,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
+import { resolve, basename, dirname, join } from 'node:path';
 import { getNewPosts } from './diff.js';
 import { readFrontmatter, processBlock } from './parser.js';
 import { splitForPlatform, MASTODON_CONFIG, BLUESKY_CONFIG } from './splitter.js';
@@ -186,6 +186,14 @@ async function main() {
 
       for (const platform of platforms) {
         const posts = splitForPlatform(processed.chunks, platform.config, options);
+
+        // Resolve image paths relative to the markdown file's directory
+        const fileDir = dirname(file);
+        for (const post of posts) {
+          for (const img of post.images) {
+            img.path = join(fileDir, img.path);
+          }
+        }
 
         if (isDryRun) {
           // Dry-run: log what would be posted

@@ -25,7 +25,7 @@ export function getChangedMarkdownFiles(beforeSha, afterSha) {
 
   try {
     const output = execSync(
-      `git diff --name-only --diff-filter=AM ${effectiveBefore} ${afterSha} -- "*.md"`,
+      `git diff --name-only --diff-filter=AMR ${effectiveBefore} ${afterSha} -- "*.md"`,
       { encoding: 'utf-8' }
     ).trim();
 

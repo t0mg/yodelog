@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mimeFromPath, generateBskyFacets, createLogger } from '../utils.js';
+import { prepareImage } from '../images.js';
 
 const log = createLogger('bluesky');
 
@@ -104,17 +105,13 @@ export function createBlueskyClient(config) {
    */
   async function uploadBlob(filePath, repoRoot = process.cwd()) {
     const absolutePath = resolve(repoRoot, filePath);
-    const fileBuffer = readFileSync(absolutePath);
-    const mime = mimeFromPath(filePath);
 
-    // BlueSky requires images under 1MB
-    if (fileBuffer.byteLength > 1_000_000) {
-      log.warn(`Image ${filePath} exceeds 1MB limit (${fileBuffer.byteLength} bytes)`);
-    }
+    // Optimize image if it exceeds BlueSky's 1MB limit
+    const { buffer, mime } = prepareImage(absolutePath);
 
-    log.info(`Uploading blob: ${filePath} (${mime})`);
+    log.info(`Uploading blob: ${filePath} (${mime}, ${(buffer.byteLength / 1024).toFixed(0)}KB)`);
     const result = await xrpc('com.atproto.repo.uploadBlob', {
-      rawBody: fileBuffer,
+      rawBody: buffer,
       contentType: mime,
     });
 

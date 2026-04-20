@@ -49,3 +49,6 @@ This post will only be broadcast when the cron job runs after June 1st, 2026 at 
 
 ## A present announcement {time: 2026-04-20T22:00Z}
 This post will only be broadcast when the cron job runs after April 20th, 2026 at 22:00 UTC. Until then, it sits quietly in the file. The `{time: ...}` tag is stripped from the heading before broadcasting.
+
+## A present announcement {time: 2026-04-20T23:00Z}
+This post will only be broadcast when the cron job runs after April 20th, 2026 at 23:00 UTC. Until then, it sits quietly in the file. The `{time: ...}` tag is stripped from the heading before broadcasting.

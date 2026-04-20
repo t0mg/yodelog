@@ -1,9 +1,8 @@
 /**
  * Image Optimization — zero-dependency image resizing via system ImageMagick.
  *
- * GitHub Actions runners (ubuntu-latest) ship with ImageMagick pre-installed.
- * This module shells out to `convert` to resize and compress images that exceed
- * platform upload limits (e.g. BlueSky's 1MB cap).
+ * Requires ImageMagick to be installed on the runner (added as a workflow step).
+ * Supports both ImageMagick 7 (`magick`) and legacy ImageMagick 6 (`convert`).
  *
  * Falls back gracefully if ImageMagick is not available.
  */
@@ -32,6 +31,40 @@ const OPTIMIZATION_STEPS = [
 ];
 
 /**
+ * Detect the available ImageMagick command.
+ * ImageMagick 7 uses `magick`, legacy v6 uses `convert`.
+ * @returns {string|null} The command name, or null if not found
+ */
+function detectMagickCommand() {
+  for (const cmd of ['magick', 'convert']) {
+    try {
+      execFileSync(cmd, ['-version'], { stdio: 'pipe' });
+      return cmd;
+    } catch {}
+  }
+  return null;
+}
+
+/** Cached ImageMagick command (detected once). */
+let magickCmd = undefined;
+
+/**
+ * Get the ImageMagick command, detecting it on first call.
+ * @returns {string|null}
+ */
+function getMagickCommand() {
+  if (magickCmd === undefined) {
+    magickCmd = detectMagickCommand();
+    if (magickCmd) {
+      log.info(`Using ImageMagick command: ${magickCmd}`);
+    } else {
+      log.warn('ImageMagick not found — image optimization disabled');
+    }
+  }
+  return magickCmd;
+}
+
+/**
  * Prepare an image for upload, optimizing it if it exceeds the size limit.
  *
  * Strategy:
@@ -52,6 +85,12 @@ export function prepareImage(absolutePath, maxBytes = DEFAULT_MAX_BYTES) {
     return { buffer: original, mime: originalMime, optimized: false };
   }
 
+  const cmd = getMagickCommand();
+  if (!cmd) {
+    log.warn(`Image is ${(original.byteLength / 1024 / 1024).toFixed(1)}MB but ImageMagick is not available`);
+    return { buffer: original, mime: originalMime, optimized: false };
+  }
+
   const sizeMB = (original.byteLength / 1024 / 1024).toFixed(1);
   log.info(`Image is ${sizeMB}MB, optimizing to fit under ${(maxBytes / 1024 / 1024).toFixed(0)}MB...`);
 
@@ -60,7 +99,7 @@ export function prepareImage(absolutePath, maxBytes = DEFAULT_MAX_BYTES) {
 
   for (const { maxDim, quality } of OPTIMIZATION_STEPS) {
     try {
-      execFileSync('convert', [
+      execFileSync(cmd, [
         absolutePath,
         '-resize', `${maxDim}x${maxDim}>`, // Only shrink, never enlarge
         '-quality', String(quality),

@@ -21,3 +21,9 @@ It will keep this image attached to the second chunk of the thread, exactly wher
 
 ---
 This final thought is manually separated because I wanted to force a new threaded reply, even though the previous text might have fit within the limits.
+
+This shouldn't be posted
+
+## Testing image post again
+because it didnt work last time...
+![Sloppy logo](./slopo.png)

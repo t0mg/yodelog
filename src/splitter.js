@@ -155,10 +155,9 @@ function autoSplitChunk(chunk, platform, options) {
   // Need to split — recursively split at the best boundary
   const parts = splitAtBoundary(chunk.text, effectiveLimit, platform);
 
-  // Distribute images using proximity rule:
-  // Each image was at a certain position in the original text.
-  // We need to figure out which split part it belongs to.
-  return distributeImages(parts, chunk.text, chunk.images, platform);
+  // Distribute images using proximity rule on the raw (unstripped) text,
+  // which still contains the image markdown for position tracking.
+  return distributeImages(parts, chunk.rawText || chunk.text, chunk.images, platform);
 }
 
 /**
@@ -297,7 +296,7 @@ function distributeImages(textParts, originalText, images, platform) {
     return textParts.map(text => ({ text, images: [] }));
   }
 
-  // Find image positions in the original text
+  // Find image positions in the original (unstripped) text
   const imagePositions = [];
   const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
   let match;
@@ -309,7 +308,15 @@ function distributeImages(textParts, originalText, images, platform) {
     });
   }
 
-  // Map each part to its proportional range in the original text
+  // If no image markdown was found in the original text (shouldn't happen,
+  // but fallback), assign all images to the last part.
+  if (imagePositions.length === 0) {
+    const result = textParts.map(text => ({ text, images: [] }));
+    result[result.length - 1].images = images;
+    return result;
+  }
+
+  // Map each part to its proportional range in the stripped text
   const totalLen = textParts.reduce((sum, p) => sum + p.length, 0);
   let cumulative = 0;
   const partRanges = textParts.map(part => {

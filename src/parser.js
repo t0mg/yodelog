@@ -97,6 +97,7 @@ export function readFrontmatter(filePath) {
 /**
  * @typedef {Object} ContentChunk
  * @property {string} text - The text content (with image markdown stripped)
+ * @property {string} rawText - The original text (with image markdown intact, for position tracking)
  * @property {Array<{alt: string, path: string}>} images - Images attached to this chunk
  */
 
@@ -136,7 +137,7 @@ export function processBlock(block) {
       path: img.path,
     }));
     const text = stripImages(chunkText);
-    return { text, images };
+    return { text, rawText: chunkText, images };
   });
 
   return { heading, chunks };

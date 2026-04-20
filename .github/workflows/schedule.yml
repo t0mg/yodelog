@@ -1,12 +1,12 @@
-name: Scheduled Broadcasts
+name: Scheduled Broadcast
 
 on:
   schedule:
-    - cron: '0 * * * *'   # every hour, on the hour
-  workflow_dispatch: {}    # manual trigger for testing
+    - cron: '*/5 * * * *' # every 5 minutes
+  workflow_dispatch: {}   # manual trigger for testing
 
 permissions:
-  contents: write          # needed to push the watermark tag
+  contents: write         # needed to push the watermark tag
 
 jobs:
   broadcast-scheduled:

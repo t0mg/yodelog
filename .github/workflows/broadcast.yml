@@ -1,4 +1,4 @@
-name: Broadcast Posts
+name: Instant Broadcast
 
 on:
   push:

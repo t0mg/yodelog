@@ -17,7 +17,11 @@ const log = createLogger('parser');
  * @property {string} prefix - Prepended to the first post in a thread
  * @property {string} suffix - Appended to the last post in a thread
  * @property {string} thread_style - Thread numbering format template
+ * @property {'push'|'schedule'|'push_or_schedule'} post_on - Broadcasting mode
  */
+
+/** Valid values for the `post_on` frontmatter key. */
+const VALID_MODES = ['push', 'schedule', 'push_or_schedule'];
 
 /** Default frontmatter values. */
 const DEFAULTS = {
@@ -25,6 +29,7 @@ const DEFAULTS = {
   prefix: '',
   suffix: '',
   thread_style: '',
+  post_on: 'push_or_schedule',
 };
 
 /**
@@ -74,6 +79,12 @@ export function parseFrontmatter(content) {
     if (key in DEFAULTS) {
       result[key] = value;
     }
+  }
+
+  // Validate post_on
+  if (!VALID_MODES.includes(result.post_on)) {
+    log.warn(`Invalid post_on "${result.post_on}", falling back to "push_or_schedule"`);
+    result.post_on = 'push_or_schedule';
   }
 
   return result;
@@ -156,4 +167,38 @@ function splitOnManualBreaks(content) {
   // Split on lines that are exactly `---` (with optional whitespace)
   const parts = content.split(/\n\s*---\s*\n/);
   return parts.map(p => p.trim()).filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// Schedule tag parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Regex to match a `{time: <ISO8601>}` tag in a heading.
+ * Captures the ISO 8601 date string.
+ */
+const SCHEDULE_TAG_REGEX = /\{time:\s*([^}]+)\}/;
+
+/**
+ * Parse a `{time: ...}` schedule tag from a heading string.
+ *
+ * @param {string} heading - The raw heading text (without the `## ` prefix)
+ * @returns {{ cleanHeading: string, scheduledTime: Date|null }}
+ */
+export function parseScheduleTag(heading) {
+  const match = heading.match(SCHEDULE_TAG_REGEX);
+  if (!match) {
+    return { cleanHeading: heading, scheduledTime: null };
+  }
+
+  const raw = match[1].trim();
+  const date = new Date(raw);
+
+  if (isNaN(date.getTime())) {
+    log.warn(`Invalid schedule time "${raw}" in heading "${heading}"`);
+    return { cleanHeading: heading, scheduledTime: null };
+  }
+
+  const cleanHeading = heading.replace(SCHEDULE_TAG_REGEX, '').replace(/  +/g, ' ').trim();
+  return { cleanHeading, scheduledTime: date };
 }

@@ -8,13 +8,14 @@ Yodelog is a stateless, serverless microblogging pipeline. Write your micro-post
 
 ## ✨ Features
 
-- **Append-Only** — Relies on `git diff`. Editing old posts to fix typos will *not* republish them.  
-- **Zero Config** — Use as a GitHub Template. If API keys are absent, the Action logs what *would* be posted without failing.  
-- **Smart Threading** — Long posts are automatically split into numbered threads at safe boundaries (paragraphs → sentences → words).  
-- **Image Support** — Use standard Markdown image syntax. Images stay attached to the thread chunk where you placed them.  
-- **Manual Threads** — Force a new thread reply with `---` horizontal rules.  
-- **Dry-Run Mode** — Name your file `*.dryrun.md` to test without broadcasting.  
-- **No Dependencies** — Pure Node.js 20, zero npm packages. Fast, auditable, no supply-chain risk.
+- **Append-Only** — Relies on `git diff`. Editing old posts to fix typos will *not* republish them.
+- **Zero Config** — Use as a GitHub Template. If API keys are absent, the Action logs what *would* be posted without failing.
+- **Smart Threading** — Long posts are automatically split into numbered threads at safe boundaries (paragraphs → sentences → words).
+- **Image Support** — Use standard Markdown image syntax. Images stay attached to the thread chunk where you placed them.
+- **Manual Threads** — Force a new thread reply with `---` horizontal rules.
+- **Dry-Run Mode** — Name your file `*.dryrun.md` to test without broadcasting.
+- **Scheduled Posts** — Add `{time: 2026-06-01T09:00Z}` to a heading and a cron job will broadcast it at the specified time, instead of immediately on commit.
+- **No Dependencies** — Pure Node.js 22, zero npm packages. Fast, auditable, no supply-chain risk.
 
 ---
 
@@ -113,8 +114,40 @@ yodelog: true               # REQUIRED — identifies this file for broadcasting
 prefix: "📝 "                    # OPTIONAL — prepended to the first post in a thread
 suffix: "#journal #notes"        # OPTIONAL — appended to the last post
 thread_style: "{current}/{total}" # OPTIONAL — numbering for auto-threaded posts
+post_on: push_or_schedule   # OPTIONAL — push | schedule | push_or_schedule (default: push_or_schedule)
 ---
 ```
+
+The `post_on` key controls which pipeline processes the file:
+
+| Mode | Push triggers broadcast? | Cron triggers broadcast? |
+|------|--------------------------|-------------------------|
+| `push` | ✅ Yes | ❌ No |
+| `schedule` | ❌ No | ✅ Yes (requires `{time:}` in heading) |
+| `push_or_schedule` | ✅ Yes (only if no `{time:}` in heading) | ✅ Yes (only if `{time:}` in heading) |
+
+### Scheduled Posts
+
+Add a `{time: ...}` tag to any `## ` heading to schedule it for later:
+
+```markdown
+## Product launch announcement {time: 2026-06-01T09:00Z}
+We're thrilled to announce the release of...
+```
+
+**How it works:**
+
+1. A cron GitHub Action runs every hour.
+2. It reads a watermark tag (`yodelog-cron-watermark`) to know when it last ran.
+3. It scans all markdown files for posts with `{time: ...}` tags.
+4. Posts whose scheduled time falls between the watermark and now are broadcast.
+5. The watermark is updated to the current time.
+
+The `{time: ...}` tag is stripped from the heading before broadcasting — your followers won't see it.
+
+**In `mode: both` files**, pushed posts without a `{time: ...}` tag broadcast immediately as usual. Posts *with* a `{time: ...}` tag are skipped by the push trigger and deferred to the cron job.
+
+The time must be a valid ISO 8601 timestamp (e.g. `2026-06-01T09:00Z`, `2026-06-01T14:30+02:00`).
 
 ### Manual Threads
 
@@ -210,11 +243,14 @@ This means you can safely fix typos in old posts without accidentally re-posting
 ## 📁 Repository Structure
 
 ```
-├── .github/workflows/broadcast.yml  — The Action that runs the pipeline
+├── .github/workflows/
+│   ├── broadcast.yml                — Push-triggered instant broadcasting
+│   └── schedule.yml                 — Cron-triggered scheduled broadcasting
 ├── src/
-│   ├── main.js                      — Pipeline orchestrator
+│   ├── main.js                      — Pipeline orchestrator (instant + cron modes)
 │   ├── diff.js                      — Git diff engine (append-only reader)
-│   ├── parser.js                    — Frontmatter + content parser
+│   ├── parser.js                    — Frontmatter + content + schedule tag parser
+│   ├── schedule.js                  — Watermark management + scheduled post scanner
 │   ├── splitter.js                  — Smart thread splitting
 │   ├── platforms/
 │   │   ├── mastodon.js              — Mastodon API client

@@ -13,13 +13,17 @@
 import { readFileSync } from 'node:fs';
 import { resolve, basename, dirname, join } from 'node:path';
 import { getNewPosts } from './diff.js';
-import { readFrontmatter, processBlock } from './parser.js';
+import { readFrontmatter, processBlock, parseScheduleTag } from './parser.js';
 import { splitForPlatform, MASTODON_CONFIG, BLUESKY_CONFIG } from './splitter.js';
 import { createMastodonClient } from './platforms/mastodon.js';
 import { createBlueskyClient } from './platforms/bluesky.js';
+import { getWatermarkTime, updateWatermark, getScheduledPosts } from './schedule.js';
 import { createLogger } from './utils.js';
 
 const log = createLogger('main');
+
+/** Broadcasting mode: 'instant' (push-triggered) or 'cron' (scheduled). */
+const YODELOG_MODE = process.env.YODELOG_MODE || 'instant';
 
 // ---------------------------------------------------------------------------
 // Environment & Configuration
@@ -107,7 +111,8 @@ function logDryRunPost(platform, index, total, post) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log('\n🔊 Yodelog — Broadcast Pipeline\n');
+  const modeLabel = YODELOG_MODE === 'cron' ? 'Scheduled' : 'Instant';
+  console.log(`\n🔊 Yodelog — ${modeLabel} Broadcast Pipeline\n`);
 
   // 1. Check credentials
   const creds = checkCredentials();
@@ -127,6 +132,19 @@ async function main() {
     log.warn('  • BLUESKY_HANDLE + BLUESKY_APP_PASSWORD\n');
   }
 
+  // Branch by mode
+  if (YODELOG_MODE === 'cron') {
+    await runCronMode(creds, hasAnyCreds);
+  } else {
+    await runInstantMode(creds, hasAnyCreds);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Instant Mode (push-triggered, existing behavior)
+// ---------------------------------------------------------------------------
+
+async function runInstantMode(creds, hasAnyCreds) {
   // 2. Get commit range
   const { before, after } = getCommitRange();
   log.info(`Commit range: ${before.slice(0, 8)}..${after.slice(0, 8)}`);
@@ -157,6 +175,12 @@ async function main() {
       continue;
     }
 
+    // Skip schedule-only files in push/instant mode
+    if (frontmatter.post_on === 'schedule') {
+      log.info(`  Skipping: file is in schedule-only mode`);
+      continue;
+    }
+
     const options = {
       prefix: frontmatter.prefix,
       suffix: frontmatter.suffix,
@@ -165,6 +189,13 @@ async function main() {
 
     // Process each block (each `## ` heading is a separate post/thread)
     for (const block of blocks) {
+      // In instant mode, skip posts with a {time: ...} tag — defer to cron
+      const { scheduledTime } = parseScheduleTag(block.heading);
+      if (scheduledTime) {
+        log.info(`  ⏭ Skipping scheduled post: "${block.heading}" (deferred to cron)`);
+        continue;
+      }
+
       totalPosts++;
       const processed = processBlock(block);
       const headingPreview = processed.heading || '(no heading)';
@@ -224,14 +255,131 @@ async function main() {
   }
 
   // 5. Summary
+  writeSummary(totalPosts, totalBroadcast, creds, 'instant');
+}
+
+// ---------------------------------------------------------------------------
+// Cron Mode (scheduled broadcasts)
+// ---------------------------------------------------------------------------
+
+async function runCronMode(creds, hasAnyCreds) {
+  const now = new Date();
+  const watermark = getWatermarkTime();
+
+  log.info(`Mode: cron`);
+  log.info(`Now:       ${now.toISOString()}`);
+  log.info(`Watermark: ${watermark.toISOString()}`);
+  log.info(`Window:    ${watermark.toISOString()} → ${now.toISOString()}`);
+
+  const fileResults = getScheduledPosts(watermark, now);
+
+  if (fileResults.length === 0) {
+    log.info('No scheduled posts ready. Nothing to broadcast.');
+    // Still update watermark to avoid re-scanning the same window
+    try {
+      updateWatermark(now);
+    } catch {
+      // Non-critical on empty run
+    }
+    return;
+  }
+
+  let totalPosts = 0;
+  let totalBroadcast = 0;
+
+  for (const { file, blocks, frontmatter } of fileResults) {
+    log.info(`\n📄 Processing: ${file}`);
+
+    const isDryRunFile = basename(file).includes('.dryrun.');
+
+    const options = {
+      prefix: frontmatter.prefix,
+      suffix: frontmatter.suffix,
+      thread_style: frontmatter.thread_style,
+    };
+
+    for (const block of blocks) {
+      totalPosts++;
+
+      // The heading was already cleaned by schedule.js (schedule tag stripped)
+      const processed = processBlock(block);
+      const headingPreview = processed.heading || '(no heading)';
+      log.info(`\n  📝 Scheduled Post: "${headingPreview}" (${processed.chunks.length} chunk(s))`);
+
+      const isDryRun = isDryRunFile || !hasAnyCreds;
+
+      if (isDryRun) {
+        const reason = isDryRunFile ? 'dry-run file' : 'no credentials';
+        console.log(`\n  🔍 DRY RUN (${reason}) — would broadcast:`);
+      }
+
+      const platforms = [
+        { config: MASTODON_CONFIG, name: 'Mastodon', enabled: creds.mastodon, clientConfig: creds.mastodonConfig },
+        { config: BLUESKY_CONFIG, name: 'BlueSky', enabled: creds.bluesky, clientConfig: creds.blueskyConfig },
+      ];
+
+      // Resolve image paths relative to the markdown file's directory
+      const fileDir = dirname(file);
+      for (const chunk of processed.chunks) {
+        for (const img of chunk.images) {
+          img.path = join(fileDir, img.path);
+        }
+      }
+
+      for (const platform of platforms) {
+        const posts = splitForPlatform(processed.chunks, platform.config, options);
+
+        if (isDryRun) {
+          for (let i = 0; i < posts.length; i++) {
+            logDryRunPost(platform.name, i, posts.length, posts[i]);
+          }
+          continue;
+        }
+
+        if (!platform.enabled) continue;
+
+        try {
+          if (platform.config.name === 'mastodon') {
+            const client = createMastodonClient(platform.clientConfig);
+            await client.postThread(posts);
+            totalBroadcast++;
+          } else if (platform.config.name === 'bluesky') {
+            const client = createBlueskyClient(platform.clientConfig);
+            await client.postThread(posts);
+            totalBroadcast++;
+          }
+        } catch (err) {
+          log.error(`Failed to broadcast to ${platform.name}:`, err.message);
+        }
+      }
+    }
+  }
+
+  // Update watermark after processing
+  try {
+    updateWatermark(now);
+  } catch (err) {
+    log.error('Failed to update watermark — posts may be re-broadcast on next run');
+  }
+
+  // Summary
+  writeSummary(totalPosts, totalBroadcast, creds, 'cron');
+}
+
+// ---------------------------------------------------------------------------
+// Shared: Summary output
+// ---------------------------------------------------------------------------
+
+async function writeSummary(totalPosts, totalBroadcast, creds, mode) {
   console.log('\n' + '─'.repeat(50));
   log.info(`Done! Processed ${totalPosts} post(s), broadcast ${totalBroadcast} time(s).`);
 
   // Write GitHub Actions job summary if available
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFileSync } = await import('node:fs');
+    const modeLabel = mode === 'cron' ? '⏰ Scheduled' : '⚡ Instant';
     const summary = [
-      '## 🔊 Yodelog Broadcast Summary',
+      `## 🔊 Yodelog Broadcast Summary (${modeLabel})`,
       '',
       `| Metric | Count |`,
       `|--------|-------|`,

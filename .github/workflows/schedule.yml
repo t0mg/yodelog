@@ -1,22 +1,24 @@
-name: Broadcast Posts
+name: Scheduled Broadcasts
 
 on:
-  push:
-    branches: [main]
-    paths: ['**/*.md']
+  schedule:
+    - cron: '0 * * * *'   # every hour, on the hour
+  workflow_dispatch: {}    # manual trigger for testing
 
+permissions:
+  contents: write          # needed to push the watermark tag
 
 jobs:
-  broadcast:
+  broadcast-scheduled:
     runs-on: ubuntu-latest
-    # Don't fail the whole workflow if broadcasting fails
     continue-on-error: true
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Full history needed for git diff
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -26,11 +28,9 @@ jobs:
       - name: Install ImageMagick
         run: sudo apt-get install -y --no-install-recommends imagemagick
 
-      - name: Broadcast new posts
+      - name: Broadcast scheduled posts
         env:
-          YODELOG_MODE: instant
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          GITHUB_EVENT_AFTER: ${{ github.event.after }}
+          YODELOG_MODE: cron
           MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
           MASTODON_INSTANCE_URL: ${{ vars.MASTODON_INSTANCE_URL }}
           BLUESKY_HANDLE: ${{ vars.BLUESKY_HANDLE }}

@@ -96,7 +96,7 @@ We're thrilled to announce the production of "Yodelog, The Movie"!
 If your file uses `post_on: push_or_schedule` (the default), posts without a `{time: ...}` tag will broadcast immediately on push, while those with a tag are skipped by the push trigger and deferred to the cron job.
 
 ### Manual Threads & Images
-Use `---` on its own line to force thread breaks within a single post.
+Use `---` on its own line to force thread breaks within a single post. Note that due to the stateless nature of this project, it is not possible to continue an existing thread.
 
 Standard Markdown images are supported (alt text is preserved, files are compressed to fit the size limits of the target platform).
 

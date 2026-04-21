@@ -133,6 +133,7 @@ Within minutes, your markdown files will be visible as a public website.
 ├── .github/workflows/
 │   ├── broadcast.yml                — Push-triggered instant broadcasting
 │   └── schedule.yml                 — Cron-triggered scheduled broadcasting
+├── content/...                      — Example content files
 ├── src/
 │   ├── main.js                      — Pipeline orchestrator (instant + cron modes)
 │   ├── diff.js                      — Git diff engine (append-only reader)
@@ -144,6 +145,5 @@ Within minutes, your markdown files will be visible as a public website.
 │   │   └── bluesky.js               — BlueSky AT Protocol client
 │   └── utils.js                     — Shared helpers
 ├── index.html                       — Docsify web entry point
-├── example/posts.md                 — Example content file
 └── package.json                     — Metadata (no dependencies)
 ```

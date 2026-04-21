@@ -2,7 +2,7 @@
 
 **Write Markdown. Push to GitHub. Broadcast everywhere.**
 
-Yodelog is a stateless, serverless microblogging pipeline. Write your micro-posts inside Markdown files, push to `main`, and a GitHub Action automatically broadcasts them to **Mastodon** and **BlueSky**. Keep your repository private, or make it public to also publish your content as a **GitHub Pages** website.
+Yodelog is a stateless, serverless microblogging pipeline. Write your micro-posts inside Markdown files, push to `main`, and a GitHub Action automatically broadcasts them to **Mastodon** and **BlueSky**. Keep your repository private, or make it public to also publish your content as a [Docsify](https://docsify.js.org/) website on **GitHub Pages**.
 
 ---
 
@@ -70,7 +70,7 @@ The GitHub Action will pick up the new `## ` heading from the diff and broadcast
 
 ## 🌐 Public Site (GitHub Pages)
 
-Yodelog includes a pre-configured `index.html` file that lets you easily host your digital garden or microblog on the web using GitHub Pages.
+Yodelog includes a pre-configured `index.html` file that lets you easily host your digital garden or microblog on the web using GitHub Pages and [Docsify](https://docsify.js.org/).
 
 To enable this:
 1. Go to your repository settings on GitHub.
@@ -83,8 +83,6 @@ Within a few minutes, your repository contents will be accessible as a public we
 **Customizing the Sidebar**
 
 The site uses a sidebar for navigation. To list the files you want to display on your site, you need to create or edit a `_sidebar.md` file in the root of your repository with links to your markdown files (or adjust to an existing sidebar if you configure `docsify`). Please refer to the [Docsify documentation](https://docsify.js.org/) for details.
-
-> **Powered by Docsify:** The frontend viewer is powered by [Docsify](https://docsify.js.org/), a magical documentation site generator. It dynamically loads and parses your Markdown files without generating static HTML files.
 
 ---
 

@@ -64,6 +64,8 @@ No heading test 1...
 
 No heading test 2...
 
+
+
 ##
 
 No heading test 3...
@@ -74,3 +76,11 @@ No heading test 4...
 
 ## This should not be posted
 checking that the tag is stripped
+
+## Testing Mastodon
+just a quick test don't mind me, if this works I'll have a neat little thing to share next
+
+---
+
+heres a clue 
+![Sloppy logo](./slopo.png)

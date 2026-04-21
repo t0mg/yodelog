@@ -78,12 +78,12 @@ suffix: "#test"
 });
 
 describe('processBlock', () => {
-  it('should include heading text in content', () => {
+  it('should not include heading text in content (as it is not broadcast)', () => {
     const block = { heading: 'My first post', rawContent: 'Hello world!' };
     const result = processBlock(block);
     assert.equal(result.heading, 'My first post');
     assert.equal(result.chunks.length, 1);
-    assert.equal(result.chunks[0].text, 'My first post\nHello world!');
+    assert.equal(result.chunks[0].text, 'Hello world!');
   });
 
   it('should handle empty heading (## without text)', () => {
@@ -101,7 +101,7 @@ describe('processBlock', () => {
     };
     const result = processBlock(block);
     assert.equal(result.chunks.length, 3);
-    assert.equal(result.chunks[0].text, 'Thread\nPart 1.');
+    assert.equal(result.chunks[0].text, 'Part 1.');
     assert.equal(result.chunks[1].text, 'Part 2.');
     assert.equal(result.chunks[2].text, 'Part 3.');
   });
@@ -133,10 +133,9 @@ describe('processBlock', () => {
     assert.equal(result.chunks[2].images.length, 0);
   });
 
-  it('should handle heading-only blocks (no body content)', () => {
+  it('should omit heading-only blocks (no body content) since headings are not broadcast', () => {
     const block = { heading: 'Just a heading', rawContent: '' };
     const result = processBlock(block);
-    assert.equal(result.chunks.length, 1);
-    assert.equal(result.chunks[0].text, 'Just a heading');
+    assert.equal(result.chunks.length, 0);
   });
 });

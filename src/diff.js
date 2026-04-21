@@ -122,14 +122,14 @@ export function extractAddedBlocks(beforeSha, afterSha, filePath) {
 function splitOnHeadings(text) {
   const blocks = [];
   // Match ## at the start of a line (with optional trailing text)
-  const headingRegex = /^## (.*)$/gm;
+  const headingRegex = /^##(?:[ \t]+(.*))?$/gm;
   const matches = [...text.matchAll(headingRegex)];
 
   if (matches.length === 0) return [];
 
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
-    const heading = match[1].trim();
+    const heading = (match[1] || '').trim();
     const startAfterHeading = match.index + match[0].length;
     const endOfContent = i + 1 < matches.length
       ? matches[i + 1].index

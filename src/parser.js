@@ -132,11 +132,8 @@ export function readFrontmatter(filePath) {
 export function processBlock(block) {
   const { heading, rawContent } = block;
 
-  // Build full content: heading (if non-empty) + body
-  let fullContent = rawContent;
-  if (heading) {
-    fullContent = heading + (rawContent ? '\n' + rawContent : '');
-  }
+  // Build full content: do not include heading in the broadcast messages
+  const fullContent = rawContent || '';
 
   // Split on manual thread breaks: a line that is exactly `---`
   // (not frontmatter, since we're past that stage)

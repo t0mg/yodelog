@@ -2,7 +2,7 @@
 
 **Write Markdown. Push to GitHub. Broadcast everywhere.**
 
-Yodelog is a stateless, serverless microblogging pipeline. Write your micro-posts inside Markdown files, push to `main`, and a GitHub Action automatically broadcasts them to **Mastodon** and **BlueSky**.
+Yodelog is a stateless, serverless microblogging pipeline. Write your micro-posts inside Markdown files, push to `main`, and a GitHub Action automatically broadcasts them to **Mastodon** and **BlueSky**. Keep your repository private, or make it public to also publish your content as a **GitHub Pages** website.
 
 ---
 
@@ -65,6 +65,26 @@ git push
 ```
 
 The GitHub Action will pick up the new `## ` heading from the diff and broadcast it. Done!
+
+---
+
+## 🌐 Public Site (GitHub Pages)
+
+Yodelog includes a pre-configured `index.html` file that lets you easily host your digital garden or microblog on the web using GitHub Pages.
+
+To enable this:
+1. Go to your repository settings on GitHub.
+2. Navigate to **Pages** (under the "Code and automation" section).
+3. Under **Build and deployment**, select **Deploy from a branch**.
+4. Set the branch to `main` (or whichever branch you push to) and the folder to `/root`. Click **Save**.
+
+Within a few minutes, your repository contents will be accessible as a public website. You can view the layout live by opening `index.html` locally using a simple HTTP server (e.g., `python -m http.server 8000` or an extension like Live Server) and navigating to `http://localhost:8000`.
+
+**Customizing the Sidebar**
+
+The site uses a sidebar for navigation. To list the files you want to display on your site, you need to create or edit a `_sidebar.md` file in the root of your repository with links to your markdown files (or adjust to an existing sidebar if you configure `docsify`). Please refer to the [Docsify documentation](https://docsify.js.org/) for details.
+
+> **Powered by Docsify:** The frontend viewer is powered by [Docsify](https://docsify.js.org/), a magical documentation site generator. It dynamically loads and parses your Markdown files without generating static HTML files.
 
 ---
 

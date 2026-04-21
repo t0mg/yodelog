@@ -71,3 +71,6 @@ No heading test 3...
 ##
 
 No heading test 4...  
+
+## This should not be posted
+checking that the tag is stripped

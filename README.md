@@ -64,13 +64,13 @@ git commit -m "first post"
 git push
 ```
 
-The GitHub Action will pick up the new `## ` heading from the diff and broadcast it. Done!
+The GitHub Action will pick up the new `##` heading from the diff and broadcast it. Done!
 
 ---
 
 ## 🌐 Public Site (GitHub Pages)
 
-Yodelog includes a pre-configured `index.html` file that lets you easily host your digital garden or microblog on the web using GitHub Pages and [Docsify](https://docsify.js.org/).
+Yodelog includes a pre-configured `index.html` file that lets you optionally host your microblog on the web using GitHub Pages and [Docsify](https://docsify.js.org/).
 
 To enable this:
 1. Go to your repository settings on GitHub.
@@ -78,7 +78,7 @@ To enable this:
 3. Under **Build and deployment**, select **Deploy from a branch**.
 4. Set the branch to `main` (or whichever branch you push to) and the folder to `/root`. Click **Save**.
 
-Within a few minutes, your repository contents will be accessible as a public website. You can view the layout live by opening `index.html` locally using a simple HTTP server (e.g., `python -m http.server 8000` or an extension like Live Server) and navigating to `http://localhost:8000`.
+Within a few minutes, your repository contents will be accessible as a public website at `https://<your-username>.github.io/<repo-name>/`. You can preview the layout live by opening `index.html` locally using a simple HTTP server (e.g., `python -m http.server 8000` or an extension like Live Server) and navigating to `http://localhost:8000`.
 
 **Customizing the Sidebar**
 
@@ -101,11 +101,11 @@ posts/
 └── daily.md
 ```
 
-Every `.md` file with `yodelog: true` in its frontmatter will be scanned for new posts on push.
+Every `.md` file with `yodelog: true` in its frontmatter will be scanned for new posts on push or schedule.
 
-### Posts = `## ` Headings
+### Posts = `##` Headings
 
-Each `## ` heading marks the start of a new, independent post:
+Each `##` heading marks the start of a new, independent post:
 
 ```markdown
 ## Morning thought
@@ -117,22 +117,26 @@ Sleep is also essential.
 
 Pushing this adds two separate posts.
 
-**Empty headings** (`##`) are supported if you don't want heading text in your post:
+> The heading text will not be posted on social media, but it will be used for titles in the [website version](#-public-site-github-pages).
+
+**Empty headings** (`##`) are supported.
 
 ```markdown
 ##
-Just the content, no heading line in the broadcast.
+This is a perfectly valid post, but will look a bit dry if you use GitHub Pages in your setup.
 ```
 
 ### Frontmatter
 
+Each markdown file must start with a frontmatter block:
+
 ```yaml
 ---
-yodelog: true               # REQUIRED — identifies this file for broadcasting
-prefix: "📝 "                    # OPTIONAL — prepended to the first post in a thread
-suffix: "#journal #notes"        # OPTIONAL — appended to the last post
+yodelog: true                     # REQUIRED — identifies this file for broadcasting
+prefix: "📝 "                     # OPTIONAL — prepended to the first post in a thread
+suffix: "#journal #notes"         # OPTIONAL — appended to the last post
 thread_style: "{current}/{total}" # OPTIONAL — numbering for auto-threaded posts
-post_on: push_or_schedule   # OPTIONAL — push | schedule | push_or_schedule (default: push_or_schedule)
+post_on: push_or_schedule         # OPTIONAL — push | schedule | push_or_schedule (default: push_or_schedule)
 ---
 ```
 
@@ -144,28 +148,50 @@ The `post_on` key controls which pipeline processes the file:
 | `schedule` | ❌ No | ✅ Yes (requires `{time:}` in heading) |
 | `push_or_schedule` | ✅ Yes (only if no `{time:}` in heading) | ✅ Yes (only if `{time:}` in heading) |
 
+## ⚡ Publishing
+
+### Push Posts
+
+Push posts are broadcast immediately when you push to the repository.
+
+**How it works:**
+
+1. You push a new markdown file to the repository.
+2. The GitHub Action triggers and scans the file for new posts.
+3. Posts are chunked into threads if necessary, images are reeoncoded.
+4. The Action posts the new posts to Mastodon and/or BlueSky.
+
+#### The Append-Only Rule
+
+This system is an **append-only log**. It only cares about *new* lines in a push:
+
+- ✅ Adding a new `##` heading → **broadcasts**
+- ❌ Editing text in an old post → **ignored**
+- ❌ Deleting a post → **ignored**
+- ✅ Adding another `##` below existing posts → **broadcasts** only the new one
+
 ### Scheduled Posts
 
-Add a `{time: ...}` tag to any `## ` heading to schedule it for later:
+Add a `{time: ...}` tag to any `##` heading to schedule it for later (if `post_on` is set to `schedule` or `push_or_schedule`):
 
 ```markdown
-## Product launch announcement {time: 2026-06-01T09:00Z}
-We're thrilled to announce the release of...
+## Universe expansion announcement {time: 2026-06-01T09:00Z}
+We're thrilled to release the trailer for Yodelog The Movie!
 ```
+
+> Time must be in ISO 8601 format (e.g. `2026-06-01T09:00Z`, `2026-06-01T14:30+02:00`).
 
 **How it works:**
 
 1. A cron GitHub Action runs every hour.
 2. It reads a watermark tag (`yodelog-cron-watermark`) to know when it last ran.
 3. It scans all markdown files for posts with `{time: ...}` tags.
-4. Posts whose scheduled time falls between the watermark and now are broadcast.
+4. Posts whose scheduled time falls between the watermark and now are broadcast using the same processing and threading logic as push posts.
 5. The watermark is updated to the current time.
 
-The `{time: ...}` tag is stripped from the heading before broadcasting — your followers won't see it.
+The `{time: ...}` tag is stripped with the rest of the heading before broadcasting, so your followers won't see it.
 
-**In `mode: both` files**, pushed posts without a `{time: ...}` tag broadcast immediately as usual. Posts *with* a `{time: ...}` tag are skipped by the push trigger and deferred to the cron job.
-
-The time must be a valid ISO 8601 timestamp (e.g. `2026-06-01T09:00Z`, `2026-06-01T14:30+02:00`).
+In files with `post_on: push_or_schedule`, pushed posts without a `{time: ...}` tag broadcast immediately as usual. Posts *with* a `{time: ...}` tag are skipped by the push trigger and deferred to the cron job.
 
 ### Manual Threads
 
@@ -197,8 +223,6 @@ Pretty clean, right?
 
 The image is uploaded to the platform and attached to the specific thread chunk where it appears (proximity rule).
 
----
-
 ## 🔍 Dry-Run Mode
 
 ### Automatic Dry Run
@@ -218,45 +242,6 @@ When pushed, the Action will:
 - ❌ Skip actual API calls
 
 Rename the file (remove `.dryrun`) when you're ready to go live.
-
----
-
-## ⚡ How It Works
-
-```
-Push to main
-    │
-    ▼
-GitHub Action triggers
-    │
-    ▼
-git diff extracts only NEW lines (lines starting with +)
-    │
-    ▼
-Scans for files with yodelog: true frontmatter
-    │
-    ▼
-Groups new content into posts (## headings)
-    │
-    ▼
-Splits into threads if needed (manual --- or auto by char limit)
-    │
-    ▼
-Uploads images, posts threads to Mastodon / BlueSky
-```
-
-### The Append-Only Rule
-
-This system is an **append-only log**. It only cares about *new* lines in a push:
-
-- ✅ Adding a new `## ` heading → **broadcasts**
-- ❌ Editing text in an old post → **ignored** (not re-broadcast)
-- ❌ Deleting a post → **ignored**
-- ✅ Adding another `## ` below existing posts → **broadcasts** only the new one
-
-This means you can safely fix typos in old posts without accidentally re-posting them.
-
----
 
 ## 📁 Repository Structure
 

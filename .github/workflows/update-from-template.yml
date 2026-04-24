@@ -10,6 +10,8 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,11 +35,20 @@ jobs:
 
           echo "Template repository: $TEMPLATE_REPO"
 
+          # Get default branch of the template repo
+          DEFAULT_BRANCH=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${TEMPLATE_REPO}" | jq -r '.default_branch')
+
+          if [ "$DEFAULT_BRANCH" == "null" ] || [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Warning: Could not determine default branch, falling back to main"
+            DEFAULT_BRANCH="main"
+          fi
+
           # Add the template repository as a remote
           git remote add template "https://github.com/${TEMPLATE_REPO}.git"
-          git fetch template main
+          git fetch template $DEFAULT_BRANCH
 
-          # Merge the template's main branch into a new branch
+          # Merge the template's default branch into a new branch
           BRANCH_NAME="update-from-template-$(date +%s)"
           git checkout -b $BRANCH_NAME
 
@@ -46,7 +57,7 @@ jobs:
           # or maybe just let it fail so they can resolve locally. Actually, for a template sync action, we usually want to commit what we have
           # but actions usually fail if there is a conflict.
           # Let's try to just do the merge.
-          if git merge template/main --allow-unrelated-histories -m "Merge template updates"; then
+          if git merge template/$DEFAULT_BRANCH --allow-unrelated-histories -m "Merge template updates"; then
             echo "Merge successful without conflicts."
           else
             echo "Merge had conflicts. Committing the conflict markers."

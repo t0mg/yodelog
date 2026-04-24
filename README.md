@@ -140,12 +140,24 @@ Yodelog includes an `index.html` file to optionally surface your microblog on Gi
 
 Within minutes, your markdown files will be visible as a public website.
 
-## 🌲 Repository Structure
+## 🌲 Maintenance
+
+### Updating from Template
+Since this repository was created from a template, you might want to pull updates (bug fixes or new features) from the original [t0mg/yodelog](https://github.com/t0mg/yodelog) repository.
+
+1. Go to the **Actions** tab in your repository.
+2. Select the **Update from Template** workflow on the left.
+3. Click **Run workflow**.
+
+If there are any changes, a new Pull Request will be opened for you to review and merge.
+
+### Repository Structure
 
 ```
 ├── .github/workflows/
 │   ├── broadcast.yml                — Push-triggered instant broadcasting
-│   └── schedule.yml                 — Cron-triggered scheduled broadcasting
+│   ├── schedule.yml                 — Cron-triggered scheduled broadcasting
+│   └── update.yml                   — Update from template workflow
 ├── content/
 │   ├── _sidebar.md                  - Example web only sidebar
 │   ├── about.md                     - Example web only content page

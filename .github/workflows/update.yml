@@ -1,0 +1,117 @@
+name: Update from Template
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch template, merge and create pull request
+        run: |
+          # Configure Git user
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Fetch the original template details from GitHub API
+          TEMPLATE_REPO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}" | jq -r '.template_repository.full_name')
+          
+          if [ "$TEMPLATE_REPO" == "null" ] || [ -z "$TEMPLATE_REPO" ]; then
+            echo "Error: Could not determine template repository. Was this repository created from the t0mg/yodelog template?"
+            exit 1
+          fi
+          
+          echo "Template repository: $TEMPLATE_REPO"
+          
+          # Add the template repository as a remote
+          git remote add template "https://github.com/${TEMPLATE_REPO}.git"
+          git fetch template main
+          
+          # Merge the template's main branch into a new branch
+          BRANCH_NAME="update-from-template-$(date +%s)"
+          git checkout -b $BRANCH_NAME
+          
+          # Selectively update core files from the template
+          echo "Force-updating core template files..."
+          
+          # List of paths to sync from the template
+          CORE_PATHS=(
+            ".github/workflows/"
+            "src/"
+            "tests/"
+            "package.json"
+            "package-lock.json"
+            "README.md"
+          )
+          
+          UPDATED_ANY=false
+          for path in "${CORE_PATHS[@]}"; do
+            echo "Checking path: $path"
+            # Attempt to checkout the path from the template. Ignore errors if path doesn't exist in template.
+            if git checkout template/main -- "$path" 2>/dev/null; then
+              echo "✅ Updated $path"
+              UPDATED_ANY=true
+            else
+              echo "ℹ️ Skipping $path (not found in template)"
+            fi
+          done
+          
+          if [ "$UPDATED_ANY" = false ]; then
+            echo "No template changes detected in core paths."
+            exit 0
+          fi
+          
+          # Check if there are actual changes to commit
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Everything is already up to date."
+            exit 0
+          fi
+
+          # Commit the changes
+          git commit -m "Force-update core template files from $TEMPLATE_REPO"
+          
+          # Push the new branch
+          git push origin $BRANCH_NAME
+          # Define the PR body using a heredoc to avoid shell interpolation issues
+          PR_BODY=$(cat <<EOF
+          This PR force-updates the core components of your repository to match the latest version of the original template ($TEMPLATE_REPO).
+
+          ### 🛠️ Core Paths Updated:
+          - \`.github/workflows/\`
+          - \`src/\`
+          - \`tests/\`
+          - \`package.json\`
+          - \`README.md\`
+
+          **Note:** This update only touches the files listed above. Your custom content (posts, custom UI, etc.) has been left untouched. If you had made custom changes to the core files listed above, please review the diff before merging.
+          EOF
+          )
+
+          # Create a pull request using GitHub CLI
+          echo "Creating pull request..."
+          if ! gh pr create --title "Update from template $TEMPLATE_REPO" \
+            --body "$PR_BODY" \
+            --base main --head $BRANCH_NAME; then
+            
+            echo "--------------------------------------------------------------------------------"
+            echo "ERROR: Failed to create Pull Request."
+            echo "This is likely due to GitHub Actions permissions."
+            echo ""
+            echo "Please ensure that 'Allow GitHub Actions to create and approve pull requests' "
+            echo "is enabled in your repository settings:"
+            echo "Settings > Actions > General > Workflow permissions"
+            echo "--------------------------------------------------------------------------------"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
